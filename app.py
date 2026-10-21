@@ -1,4 +1,3 @@
-
 import os
 import re
 
@@ -293,7 +292,11 @@ Original message:
                 result = (response.text or "").strip()
 
             if not result:
-                st.error("Gemini returned an empty response. Try again.")
+                st.error(
+                    "Gemini returned an empty response. "
+                    "It may have been blocked by safety filters. "
+                    "Try again or rephrase your message."
+                )
 
             else:
                 st.session_state["result"] = result
@@ -302,6 +305,11 @@ Original message:
                 st.session_state["length"] = length
                 st.session_state["retrieved"] = retrieved
                 st.session_state["used_rag"] = bool(retrieved)
+
+                # FIX: write the new result into the text area's own
+                # widget key BEFORE the widget is created, so each new
+                # generation replaces the old text (even after edits).
+                st.session_state["rewritten_output"] = result
 
         except Exception as error:
             st.error(
@@ -331,16 +339,22 @@ if st.session_state.get("result"):
             f"Length: {st.session_state['length']}"
         )
 
+        # FIX: no `value=` here. The widget's content is controlled
+        # entirely through st.session_state["rewritten_output"].
         st.text_area(
             "Rewritten message",
-            value=st.session_state["result"],
             height=200,
             key="rewritten_output",
         )
 
+        # FIX: download the current (possibly user-edited) text,
+        # not the original generated result.
         st.download_button(
             "⬇️ Download message",
-            data=st.session_state["result"],
+            data=st.session_state.get(
+                "rewritten_output",
+                st.session_state["result"],
+            ),
             file_name="toneshift-message.txt",
             mime="text/plain",
             use_container_width=True,
@@ -376,7 +390,12 @@ if st.session_state.get("result"):
             st.write(st.session_state["original"])
 
             st.markdown("**Rewritten message**")
-            st.write(st.session_state["result"])
+            st.write(
+                st.session_state.get(
+                    "rewritten_output",
+                    st.session_state["result"],
+                )
+            )
 
 st.divider()
 st.caption(
