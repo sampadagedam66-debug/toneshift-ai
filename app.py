@@ -1,4 +1,10 @@
 import streamlit as st
+import os
+from dotenv import load_dotenv
+from google import genai
+
+load_dotenv()
+
 
 st.set_page_config(
     page_title="ToneShift AI",
@@ -53,3 +59,26 @@ with right:
     **2. Generation**  
     Gemini generates a rewritten message.
     """)
+
+if generate:
+    api_key = os.getenv("GEMINI_API_KEY")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
+    if not message.strip():
+        st.warning("Please enter a message first.")
+    elif not api_key:
+        st.error("API key missing. Add GEMINI_API_KEY to your .env file.")
+    else:
+        prompt = f"""
+Rewrite the following message in a {tone.lower()} tone.
+Return only the rewritten message.
+
+{message}
+"""
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+        )
+        st.subheader("✨ Your transformed message")
+        st.write(response.text)
